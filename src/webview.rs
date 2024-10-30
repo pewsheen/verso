@@ -138,6 +138,14 @@ impl Window {
                     send_to_constellation(sender, ConstellationMsg::FocusWebView(webview_id));
                 }
             }
+            EmbedderMsg::Prompt(def, org) => match def {
+                PromptDefinition::Alert(msg, dialog_sender) => {
+                    dbg!(msg);
+                    self.create_dialog(sender);
+                    let _ = dialog_sender.send(());
+                }
+                _ => (),
+            },
             e => {
                 log::trace!("Verso WebView isn't supporting this message yet: {e:?}")
             }

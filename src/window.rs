@@ -46,6 +46,8 @@ pub struct Window {
     pub(crate) panel: Option<Panel>,
     /// The WebView of this window.
     pub(crate) webview: Option<WebView>,
+    /// The Dialog of this window.
+    pub(crate) dialog: Option<WebView>,
     /// The mouse physical position in the web view.
     mouse_position: Cell<Option<PhysicalPosition<f64>>>,
     /// Modifiers state of the keyboard.
@@ -92,6 +94,7 @@ impl Window {
                 surface,
                 panel: None,
                 webview: None,
+                dialog: None,
                 mouse_position: Default::default(),
                 modifiers_state: Cell::new(ModifiersState::default()),
             },
@@ -128,6 +131,7 @@ impl Window {
             surface,
             panel: None,
             webview: None,
+            dialog: None,
             mouse_position: Default::default(),
             modifiers_state: Cell::new(ModifiersState::default()),
         };
@@ -169,6 +173,31 @@ impl Window {
             constellation_sender,
             ConstellationMsg::NewWebView(url, panel_id),
         );
+    }
+
+    /// Create a dialog in the window.
+    ///
+    /// Often used by calling window.alert() or window.confirm() in the web page.
+    pub fn create_dialog(&mut self, constellation_sender: &Sender<ConstellationMsg>) {
+        // Adjust dialog position to the center of the window.
+        let origin = DeviceIntPoint::new(self.calc_dialog_start_x(), 72);
+        // Fixed sized
+        let size = Size2D::new(1000, 300);
+        let rect = DeviceIntRect::from_origin_and_size(origin, size);
+        dbg!(&rect);
+        let dialog_id = WebViewId::new();
+        self.dialog = Some(WebView::new(dialog_id, rect));
+
+        let url = ServoUrl::parse("verso://dialog.html").unwrap();
+        send_to_constellation(
+            constellation_sender,
+            ConstellationMsg::NewWebView(url, dialog_id),
+        );
+    }
+
+    fn calc_dialog_start_x(&self) -> i32 {
+        let window_size = self.window.inner_size();
+        std::cmp::max(0, (window_size.width as i32 - 1000) / 2)
     }
 
     /// Handle Winit window event and return a boolean to indicate if the compositor should repaint immediately.
@@ -414,6 +443,9 @@ impl Window {
         }
         if let Some(webview) = &self.webview {
             order.push(webview);
+        }
+        if let Some(dialog) = &self.dialog {
+            order.push(dialog);
         }
         order
     }
